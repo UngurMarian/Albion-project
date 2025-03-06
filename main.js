@@ -200,38 +200,32 @@ function findProfitableTradesBetweenCities(data, cities, taxModifier, marketAge)
         acc[item.item_id].push(item);
         return acc;
     }, {});
-  
+
     // Iterate over each item type
     for (const item_id in itemsById) {
         const items = itemsById[item_id];
 
-        // Compare listings within the defined cities only
+        // Compare listings across all cities
         for (let i = 0; i < items.length; i++) {
             const itemA = items[i];
 
-            // Skip if the item is not in one of the desired cities
             if (!cities.includes(itemA.city)) continue;
 
-            // Convert sell price date to Date object and check if it's within market age
             const sellDate = new Date(`${itemA.sell_price_min_date}Z`);
             const sellAge = parseInt((now - sellDate) / 60 / 1000);
             if (sellAge > marketAge) continue;
 
             for (let j = 0; j < items.length; j++) {
-                if (i === j) continue; // Avoid comparing the same city with itself
+                if (i === j) continue;
 
                 const itemB = items[j];
-                if (itemB.city != "Black Market") continue;
 
-                // Skip if the item is not in one of the desired cities
-                if (!cities.includes(itemB.city)) continue;
+                if (!cities.includes(itemB.city) || itemA.city === itemB.city) continue;
 
-                // Convert buy price date to Date object and check if it's within market age
                 const buyDate = new Date(`${itemB.buy_price_max_date}Z`);
-                const buyAge = parseInt((now - buyDate) / 60 / 1000); 
+                const buyAge = parseInt((now - buyDate) / 60 / 1000);
                 if (buyAge > marketAge) continue;
 
-                // Extract relevant values for comparison
                 const {
                     sell_price_min: sellPriceA,
                     city: cityA,
@@ -244,13 +238,10 @@ function findProfitableTradesBetweenCities(data, cities, taxModifier, marketAge)
                     quality: qualityB
                 } = itemB;
 
-                risk = (rawBuyPriceB * 100 / minBuyOrder)/100; 
-                //console.log(risk, typeof(risk));
-                if (risk === Infinity || risk > 1 ) { risk = "N/A" } else { risk = risk.toFixed(2)}
-
+                const risk = minBuyOrder > 0 ? ((rawBuyPriceB * 100 / minBuyOrder) / 100).toFixed(2) : "N/A";
                 const buyPriceB = parseInt(rawBuyPriceB * taxModifier);
-                // Check for profitable trade, ensuring quality constraints are met
-                if (buyPriceB > sellPriceA && sellPriceA > 0 && cityA != cityB && qualityA >= qualityB) {
+
+                if (buyPriceB > sellPriceA && sellPriceA > 0 && qualityA >= qualityB) {
                     profitableTrades.push({
                         buyFromCity: cityA,
                         sellToCity: cityB,
@@ -262,7 +253,7 @@ function findProfitableTradesBetweenCities(data, cities, taxModifier, marketAge)
                         sellAge: sellAge,
                         buyAge: buyAge,
                         profit: buyPriceB - sellPriceA,
-                        risk: risk, 
+                        risk: risk
                     });
                 }
             }
